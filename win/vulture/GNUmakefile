@@ -57,9 +57,16 @@ endef
 all: $(OUTPUT_OBJ)
 	@echo finished building the files for the vulture interface
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+	PARTIAL_LINK_FLAGS := -nostdlib -Xlinker -r -lc++
+else
+	PARTIAL_LINK_FLAGS := -nostdlib -no-pie -Xlinker -r -lstdc++
+endif
+
 $(OUTPUT_OBJ): $(VOBJ)
 	@echo combining objects to $@
-	@$(CXX) -nostdlib -Xlinker -r $(VOBJ) -lc++ -o $(OUTPUT_OBJ)
+	@$(CXX) $(PARTIAL_LINK_FLAGS) $(VOBJ) -o $(OUTPUT_OBJ)
 
 $(BUILDDIR)/vulture_tileconfig.parser.cpp $(BUILDDIR)/vulture_tileconfig.parser.h: vulture_tileconfig.parser.y
 	@echo generating parser
