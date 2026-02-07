@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [vultures-3.6.6]
+  pull_request:
+    branches: [vultures-3.6.6]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libpng-dev libogg-dev libvorbis-dev libtheora-dev bison flex groff
+
+      - name: Generate Makefiles
+        run: cd sys/unix && sh setup.sh && cd ../..
+
+      - name: Build
+        run: make -j$(nproc)
+
+      - name: Install
+        run: make install
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install sdl2 sdl2_mixer sdl2_ttf libpng libogg libvorbis theora bison flex
+
+      - name: Generate Makefiles
+        run: cd sys/unix && sh setup.sh && cd ../..
+
+      - name: Build
+        run: make -j$(sysctl -n hw.ncpu)
+
+      - name: Install
+        run: make install

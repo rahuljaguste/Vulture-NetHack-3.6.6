@@ -60,3 +60,24 @@ Makefile.gcc-orig
 cscope.out
 cscope.files
 
+# Build output directories
+compiled/
+build-web/
+
+# Compiled binary
+src/vulture-nethack-3.6.6
+
+# Dependency files
+*.d
+
+# Vulture build intermediates
+win/vulture/build_nethack_3_6_0/winclass/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+*.dSYM/
