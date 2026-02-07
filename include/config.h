@@ -20,11 +20,7 @@
 # define EMSCRIPTEN_BUILD
 #endif
 
-#ifndef __EMSCRIPTEN__
 #define UNIX /* delete if no fork(), exec() available */
-#else
-#define UNIX /* Emscripten uses Unix-like paths but no fork/exec */
-#endif
 
 /* #define MSDOS */ /* in case it's not auto-detected */
 

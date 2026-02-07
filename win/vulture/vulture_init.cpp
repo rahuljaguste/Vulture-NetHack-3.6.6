@@ -448,11 +448,10 @@ static void vulture_init_colors()
 	SDL_Surface * pixel = SDL_CreateRGBSurface(0, 1, 1, 32,
 								0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
 
-	vulture_px_format = new SDL_PixelFormat;
 	if (vulture_screen)
-		memcpy(vulture_px_format, vulture_screen->format, sizeof(SDL_PixelFormat));
+		vulture_px_format = SDL_AllocFormat(vulture_screen->format->format);
 	else
-		memcpy(vulture_px_format, pixel->format, sizeof(SDL_PixelFormat));
+		vulture_px_format = SDL_AllocFormat(pixel->format->format);
 
 	/* The screen surface may not have an alpha channel (e.g. Emscripten returns
 	 * XRGB8888). We need alpha for tile transparency, so add an alpha mask
@@ -634,5 +633,5 @@ void vulture_destroy_graphics(void)
 		free (vulture_event_sounds[i].searchpattern);
 
 	/* misc small stuff */
-	delete vulture_px_format;
+	SDL_FreeFormat(vulture_px_format);
 }

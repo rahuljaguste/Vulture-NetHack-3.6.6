@@ -70,7 +70,7 @@ void vulture_wait_event(SDL_Event * event, int wait_timeout)
 #ifdef __EMSCRIPTEN__
 		/* Poll events, skipping only internal sentinel events */
 		while (SDL_PollEvent(event)) {
-			if (event->type == 0x7F00)
+			if (event->type == SDL_POLLSENTINEL)
 				continue; /* skip SDL_POLLSENTINEL */
 			break; /* got a real event */
 		}
@@ -94,6 +94,7 @@ void vulture_wait_event(SDL_Event * event, int wait_timeout)
 		if ((event->type == SDL_KEYDOWN && !is_modifier_key(event->key.keysym.sym)) ||
 			event->type == SDL_MOUSEBUTTONDOWN ||
 			event->type == SDL_MOUSEBUTTONUP ||
+			event->type == SDL_MOUSEWHEEL ||
 #ifdef __EMSCRIPTEN__
 			/* In Emscripten, always accept timer events (no mouse focus tracking) */
 			event->type == SDL_TIMEREVENT ||
@@ -123,7 +124,7 @@ int vulture_poll_event(SDL_Event * event)
 
 #ifdef __EMSCRIPTEN__
 		while (SDL_PollEvent(event)) {
-			if (event->type == 0x7F00)
+			if (event->type == SDL_POLLSENTINEL)
 				continue; /* skip SDL_POLLSENTINEL */
 			if (event->type == SDL_MOUSEMOTION) {
 				vulture_handle_global_event(event);
@@ -173,7 +174,7 @@ void vulture_wait_input(SDL_Event * event, int wait_timeout)
 			continue;
 		}
 		/* Filter out SDL_POLLSENTINEL internal events */
-		if (event->type == 0x7F00) {
+		if (event->type == SDL_POLLSENTINEL) {
 			emscripten_sleep(1);
 			continue;
 		}
@@ -212,7 +213,7 @@ void vulture_wait_key(SDL_Event * event)
 			continue;
 		}
 		/* Filter out SDL_POLLSENTINEL internal events */
-		if (event->type == 0x7F00) {
+		if (event->type == SDL_POLLSENTINEL) {
 			emscripten_sleep(1);
 			continue;
 		}
@@ -527,7 +528,7 @@ void vulture_enter_graphics_mode()
 	/* Initialize the event handlers */
 	atexit(SDL_Quit);
 
-  vulture_set_screensize();
+	vulture_set_screensize();
 
 	/* no screen: maybe the configured video mode didn't work */
 	if (!vulture_screen) {

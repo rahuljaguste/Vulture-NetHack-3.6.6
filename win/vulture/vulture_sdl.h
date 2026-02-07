@@ -17,6 +17,9 @@
 #define SDL_TIMEREVENT SDL_USEREVENT
 #define SDL_MOUSEMOVEOUT (SDL_USEREVENT+1)
 
+/* Internal SDL2 event that leaks through SDL_PollEvent in Emscripten */
+#define SDL_POLLSENTINEL 0x7F00
+
 /* SDL2 window pointer */
 extern SDL_Window *vulture_sdl_window;
 

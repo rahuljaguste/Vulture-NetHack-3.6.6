@@ -2,6 +2,7 @@
 
 #include "window.h"
 
+#include "vulture_gen.h"
 #include "vulture_gra.h"
 #include "vulture_sdl.h"
 #include "vulture_win.h"
@@ -330,14 +331,23 @@ window::event_handler(window *target, void *result, SDL_Event *event)
             target, result, event->button.x, event->button.y,
             event->button.button, event->button.state);
 
+    case SDL_MOUSEWHEEL:
+    {
+        /* SDL2 sends wheel as a separate event type; translate to the
+         * button constants the existing handlers already check for. */
+        int mx, my;
+        SDL_GetMouseState(&mx, &my);
+        int btn = (event->wheel.y > 0) ? SDL_BUTTON_WHEELUP : SDL_BUTTON_WHEELDOWN;
+        if (event->wheel.y != 0)
+            return handle_mousebuttonup_event(target, result, mx, my, btn, 0);
+        return V_EVENT_UNHANDLED;
+    }
+
     case SDL_KEYDOWN:
     {
-        /* SDL2: derive character from keysym.sym for printable ASCII keys */
         int sym = event->key.keysym.sym;
         int mod = event->key.keysym.mod;
-        int ch = 0;
-        if (sym >= 0 && sym < 128)
-            ch = sym; /* SDL2 keysym values match ASCII for basic keys */
+        int ch = vulture_keysym_to_char(sym, mod);
         return handle_keydown_event(target, result, sym, mod, ch);
     }
 

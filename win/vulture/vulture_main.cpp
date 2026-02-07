@@ -655,10 +655,10 @@ int vulture_nhgetch(void)
 	vulture_wait_key(&event);
 
 	{
-		/* SDL2: derive character from keysym for ASCII keys */
 		int sym = event.key.keysym.sym;
-		int ch = (sym >= 0 && sym < 128) ? sym : 0;
-		return vulture_translate_key(vulture_make_nh_key(sym, event.key.keysym.mod, ch));
+		int mod = event.key.keysym.mod;
+		int ch = vulture_keysym_to_char(sym, mod);
+		return vulture_translate_key(vulture_make_nh_key(sym, mod, ch));
 	}
 }
 

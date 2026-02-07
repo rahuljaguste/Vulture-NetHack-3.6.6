@@ -293,6 +293,51 @@ int vulture_numpad_to_hjkl(int cmd_key, int shift)
 
 
 
+/* SDL2: convert keysym + modifiers to the actual typed character.
+ * SDL1 provided this via keysym.unicode; SDL2 removed that field. */
+int vulture_keysym_to_char(int sym, int mod)
+{
+	/* US keyboard layout shift mappings for digit row */
+	static const char shifted_digits[] = ")!@#$%^&*(";
+	int shift = mod & KMOD_SHIFT;
+
+	if (sym >= SDLK_a && sym <= SDLK_z) {
+		if (shift)
+			return sym - 'a' + 'A';
+		return sym;
+	}
+
+	if (sym >= SDLK_0 && sym <= SDLK_9) {
+		if (shift)
+			return shifted_digits[sym - SDLK_0];
+		return sym;
+	}
+
+	if (shift) {
+		switch (sym) {
+			case SDLK_BACKQUOTE:    return '~';
+			case SDLK_MINUS:        return '_';
+			case SDLK_EQUALS:       return '+';
+			case SDLK_LEFTBRACKET:  return '{';
+			case SDLK_RIGHTBRACKET: return '}';
+			case SDLK_BACKSLASH:    return '|';
+			case SDLK_SEMICOLON:    return ':';
+			case SDLK_QUOTE:        return '"';
+			case SDLK_COMMA:        return '<';
+			case SDLK_PERIOD:       return '>';
+			case SDLK_SLASH:        return '?';
+			default: break;
+		}
+	}
+
+	/* Non-shifted printable ASCII or non-printable key */
+	if (sym >= 0 && sym < 128)
+		return sym;
+
+	return 0;
+}
+
+
 /* convert sdl keycodes so that nethack can use them */
 int vulture_make_nh_key(int sym, int mod, int ch)
 {
