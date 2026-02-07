@@ -3,6 +3,13 @@
 #ifndef _vulture_gen_h_
 #define _vulture_gen_h_
 
+/* NetHack's hack.h defines yn(query) as a macro, which conflicts with the
+ * Bessel function yn() in <math.h> pulled in by C++ standard library headers.
+ * We must undef it before including any C++ standard headers. */
+#ifdef yn
+#undef yn
+#endif
+
 /*--------------------------------------------------------------------------
  General functions
 --------------------------------------------------------------------------*/

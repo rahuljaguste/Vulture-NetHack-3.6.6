@@ -142,8 +142,9 @@ static int vulture_stop_travelling = 0;
 * nethack interface api 
 *****************************/
 
-void win_vulture_init(void)
+void win_vulture_init(int dir)
 {
+	(void)dir; /* WININIT or WININIT_UNDO */
 #if defined(_WIN32)
 	/*nt_kbhit = vulture_kbhit;*/ /* this should be unnecessary and we haven't implemented a "vulture_kbhit" anywhere */
 #endif
@@ -653,7 +654,12 @@ int vulture_nhgetch(void)
 
 	vulture_wait_key(&event);
 
-	return vulture_translate_key(vulture_make_nh_key(event.key.keysym.sym, event.key.keysym.mod, event.key.keysym.unicode));
+	{
+		/* SDL2: derive character from keysym for ASCII keys */
+		int sym = event.key.keysym.sym;
+		int ch = (sym >= 0 && sym < 128) ? sym : 0;
+		return vulture_translate_key(vulture_make_nh_key(sym, event.key.keysym.mod, ch));
+	}
 }
 
 

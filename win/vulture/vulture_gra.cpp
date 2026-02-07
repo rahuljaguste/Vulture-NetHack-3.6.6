@@ -39,7 +39,8 @@ static void dofade(double n_secs, SDL_Surface * blendimg)
 
 	/* calculate how many individual blends we want to do */
 	int n_steps = FADESTEPS_PER_SEC * n_secs;
-	SDL_SetAlpha(blendimg, SDL_SRCALPHA, (SDL_ALPHA_OPAQUE / n_steps));
+	SDL_SetSurfaceAlphaMod(blendimg, (SDL_ALPHA_OPAQUE / n_steps));
+	SDL_SetSurfaceBlendMode(blendimg, SDL_BLENDMODE_BLEND);
 
 	start_clock = cur_clock = SDL_GetTicks();
 	end_clock = start_clock + (n_secs * 1000);
@@ -59,7 +60,8 @@ static void dofade(double n_secs, SDL_Surface * blendimg)
 	}
 
 	/* ensure that the screen is fully faded in */
-	SDL_SetAlpha(blendimg, 0, 0);
+	SDL_SetSurfaceAlphaMod(blendimg, SDL_ALPHA_OPAQUE);
+	SDL_SetSurfaceBlendMode(blendimg, SDL_BLENDMODE_NONE);
 	SDL_BlitSurface(blendimg, NULL, vulture_screen, NULL);
 	vulture_refresh();
 }
@@ -178,7 +180,7 @@ void vulture_fill_rect_surface
 	/* to get alpha-blending with our rect-filling we create a temp surface, fill that
 	* and then let SDL_BlitSurface do the blending for us */
 	SDL_Surface * tmp_surface = SDL_CreateRGBSurface(
-			SDL_SWSURFACE | SDL_SRCALPHA,
+			0,
 			srcrect.w,
 			srcrect.h,
 			32, surface->format->Rmask, surface->format->Gmask, surface->format->Bmask, DEF_AMASK);
@@ -231,7 +233,7 @@ SDL_Surface *vulture_get_img_src
 
 
 	toSurface = SDL_CreateRGBSurface(
-			SDL_SWSURFACE | SDL_SRCALPHA,
+			0,
 			x2+1-x1,
 			y2+1-y1,
 			img_source->format->BitsPerPixel,

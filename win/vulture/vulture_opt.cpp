@@ -16,6 +16,10 @@
 #include "vulture_sdl.h"
 #include "vulture_opt.h"
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
+
 #include "winclass/levelwin.h"
 
 enum interface_opts_menu_ids {
@@ -297,6 +301,14 @@ void vulture_read_options(void)
 		vulture_opts.width = 640;
 	if (vulture_opts.height < 480)
 		vulture_opts.height = 480;
+
+#ifdef __EMSCRIPTEN__
+	/* Override with browser viewport dimensions for native-resolution rendering */
+	vulture_opts.width = EM_ASM_INT({ return window.innerWidth; });
+	vulture_opts.height = EM_ASM_INT({ return window.innerHeight; });
+	if (vulture_opts.width < 800) vulture_opts.width = 800;
+	if (vulture_opts.height < 600) vulture_opts.height = 600;
+#endif
 
 
 	/* Read event sounds options */

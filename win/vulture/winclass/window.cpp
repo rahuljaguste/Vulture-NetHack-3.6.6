@@ -331,13 +331,22 @@ window::event_handler(window *target, void *result, SDL_Event *event)
             event->button.button, event->button.state);
 
     case SDL_KEYDOWN:
-        return handle_keydown_event(target, result, event->key.keysym.sym,
-                                    event->key.keysym.mod,
-                                    event->key.keysym.unicode);
+    {
+        /* SDL2: derive character from keysym.sym for printable ASCII keys */
+        int sym = event->key.keysym.sym;
+        int mod = event->key.keysym.mod;
+        int ch = 0;
+        if (sym >= 0 && sym < 128)
+            ch = sym; /* SDL2 keysym values match ASCII for basic keys */
+        return handle_keydown_event(target, result, sym, mod, ch);
+    }
 
-    case SDL_VIDEORESIZE:
-        return handle_resize_event(target, result, event->resize.w,
-                                   event->resize.h);
+    case SDL_WINDOWEVENT:
+        if (event->window.event == SDL_WINDOWEVENT_RESIZED)
+            return handle_resize_event(target, result,
+                                       event->window.data1,
+                                       event->window.data2);
+        return handle_other_event(target, result, event);
 
     default:
         return handle_other_event(target, result, event);

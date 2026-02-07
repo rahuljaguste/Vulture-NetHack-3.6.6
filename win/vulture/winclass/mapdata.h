@@ -9,6 +9,9 @@ extern "C" {
 
 #include "window.h"
 
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 #include <vector>
 

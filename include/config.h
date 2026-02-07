@@ -15,7 +15,16 @@
  *              MacOSX uses the UNIX configuration, not the old MAC one.
  */
 
+#ifdef __EMSCRIPTEN__
+/* Emscripten/WebAssembly build - mark for special handling */
+# define EMSCRIPTEN_BUILD
+#endif
+
+#ifndef __EMSCRIPTEN__
 #define UNIX /* delete if no fork(), exec() available */
+#else
+#define UNIX /* Emscripten uses Unix-like paths but no fork/exec */
+#endif
 
 /* #define MSDOS */ /* in case it's not auto-detected */
 
@@ -42,7 +51,7 @@
  * Define all of those you want supported in your binary.
  * Some combinations make no sense.  See the installation document.
  */
-#if !defined(NOTTYGRAPHICS)
+#if !defined(NOTTYGRAPHICS) && !defined(__EMSCRIPTEN__)
 #define TTY_GRAPHICS /* good old tty based graphics */
 #endif
 /* #define CURSES_GRAPHICS *//* Curses interface - Karl Garrison*/
@@ -361,7 +370,9 @@
  * If you define HACKDIR, then this will be the default playground;
  * otherwise it will be the current directory.
  */
-# ifndef HACKDIR
+# ifdef __EMSCRIPTEN__
+#  define HACKDIR "/nhdata"
+# elif !defined(HACKDIR)
 #  define HACKDIR "./"
 # endif
 

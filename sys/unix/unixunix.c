@@ -266,6 +266,11 @@ unsigned msec; /* milliseconds */
 int
 dosh()
 {
+#ifdef __EMSCRIPTEN__
+    /* No shell access in browser */
+    pline("Shell access is not available in the web version.");
+    return 0;
+#else
     char *str;
 
 #ifdef SYSCF
@@ -286,6 +291,7 @@ dosh()
         exit(EXIT_FAILURE);
     }
     return 0;
+#endif /* !__EMSCRIPTEN__ */
 }
 #endif /* SHELL */
 
@@ -294,6 +300,11 @@ int
 child(wt)
 int wt;
 {
+#ifdef __EMSCRIPTEN__
+    /* No fork/exec in Emscripten */
+    pline("Cannot spawn child process in the web version.");
+    return 0;
+#else
     register int f;
 
     suspend_nhwindows((char *) 0); /* also calls end_screen() */
@@ -338,6 +349,7 @@ int wt;
     }
     resume_nhwindows();
     return 0;
+#endif /* !__EMSCRIPTEN__ */
 }
 #endif /* SHELL || DEF_PAGER || DEF_MAILREADER */
 

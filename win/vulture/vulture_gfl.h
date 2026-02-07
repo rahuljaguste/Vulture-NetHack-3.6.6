@@ -6,6 +6,9 @@
 
 #include <SDL.h>
 
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 
 extern SDL_Surface *vulture_load_surface(char *srcbuf, unsigned int buflen);

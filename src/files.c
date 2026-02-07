@@ -43,15 +43,19 @@ const
 
 #define VULTURE_BONE_ENUMERATE "1"
 #define VULTURE_SAVE_ENUMERATE "1"
-#ifdef __amd64
+#ifdef __EMSCRIPTEN__
+  #define VULTURE_SAVE_ARCH "wasm32"
+#elif defined(__amd64)
   #define VULTURE_SAVE_ARCH "amd64"
-#elif __x86_64
+#elif defined(__x86_64)
   #define VULTURE_SAVE_ARCH "x86_64"
 #else
   #define VULTURE_SAVE_ARCH "i386"
 #endif
 #ifdef WIN32
   #define VULTURE_SAVE_OS "windows"
+#elif __EMSCRIPTEN__
+  #define VULTURE_SAVE_OS "web"
 #elif __linux__
   #define VULTURE_SAVE_OS "linux"
 #elif __APPLE__
@@ -1730,6 +1734,10 @@ const char *filename;
 int whichprefix;
 int retryct;
 {
+#ifdef __EMSCRIPTEN__
+    /* No file locking needed in Emscripten - single player in browser */
+    return TRUE;
+#else
 #if defined(PRAGMA_UNUSED) && !(defined(UNIX) || defined(VMS)) \
     && !(defined(AMIGA) || defined(WIN32) || defined(MSDOS))
 #pragma unused(retryct)
@@ -1880,6 +1888,7 @@ int retryct;
     }
 #endif /* AMIGA || WIN32 || MSDOS */
     return TRUE;
+#endif /* !__EMSCRIPTEN__ */
 }
 
 #ifdef VMS /* for unlock_file, use the unlink() routine in vmsunix.c */
@@ -1894,6 +1903,10 @@ void
 unlock_file(filename)
 const char *filename;
 {
+#ifdef __EMSCRIPTEN__
+    /* No file locking in Emscripten - nothing to unlock */
+    return;
+#else
 #ifndef USE_FCNTL
     char locknambuf[BUFSZ];
     const char *lockname;
@@ -1932,6 +1945,7 @@ const char *filename;
     }
 
     nesting--;
+#endif /* !__EMSCRIPTEN__ */
 }
 
 /* ----------  END FILE LOCKING HANDLING ----------- */

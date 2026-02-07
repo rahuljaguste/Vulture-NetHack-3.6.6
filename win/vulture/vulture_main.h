@@ -14,7 +14,7 @@ extern struct window_procs vulture_procs;
 extern int vulture_whatis_active;
 
 
-extern void win_vulture_init();
+extern void win_vulture_init(int);
 extern int vulture_find_menu_accelerator(char *used_accelerators);
 extern void vulture_bail(const char *mesg);
 

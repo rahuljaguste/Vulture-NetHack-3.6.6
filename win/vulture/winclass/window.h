@@ -5,6 +5,9 @@
 
 #include "vulture_types.h"
 #include <SDL.h>
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 #include <vector>
 

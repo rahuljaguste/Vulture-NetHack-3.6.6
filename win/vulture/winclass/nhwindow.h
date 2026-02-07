@@ -4,6 +4,9 @@
 #define _nhwindow_h_
 
 #include "menuitem.h"
+#ifdef yn
+#undef yn
+#endif
 #include <list>
 #include <string>
 

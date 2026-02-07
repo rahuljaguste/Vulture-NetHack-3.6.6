@@ -12,9 +12,9 @@ LD := ld
 ifndef SDL_CFLAGS
 	ifndef SDL_CONFIG
 		OS := $(shell uname -s)
-		SDL_CONFIG := sdl-config
+		SDL_CONFIG := sdl2-config
 	endif
-	SDL_CFLAGS = $(shell $(SDL_CONFIG) --cflags)
+	SDL_CFLAGS = $(shell $(SDL_CONFIG) --cflags) $(shell pkg-config --cflags libpng 2>/dev/null)
 endif
 
 CFLAGS := $(BASECFLAGS) $(SDL_CFLAGS) -DUSE_SDL_SYSCALLS -g3 -Wall
@@ -59,7 +59,7 @@ all: $(OUTPUT_OBJ)
 
 $(OUTPUT_OBJ): $(VOBJ)
 	@echo combining objects to $@
-	@$(CXX) -nostdlib -Xlinker -r $(VOBJ) -L /tmp/libstdcxx/lib64 -lstdc++ -o $(OUTPUT_OBJ)
+	@$(CXX) -nostdlib -Xlinker -r $(VOBJ) -lc++ -o $(OUTPUT_OBJ)
 
 $(BUILDDIR)/vulture_tileconfig.parser.cpp $(BUILDDIR)/vulture_tileconfig.parser.h: vulture_tileconfig.parser.y
 	@echo generating parser

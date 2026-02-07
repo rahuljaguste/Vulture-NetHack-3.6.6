@@ -3,6 +3,9 @@
 #ifndef _vulture_txt_h_
 #define _vulture_txt_h_
 
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 #include "SDL_ttf.h"
 

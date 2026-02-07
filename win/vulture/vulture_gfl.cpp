@@ -8,12 +8,13 @@
 #include <unistd.h>
 #endif
 
-#include <SDL.h>
+#include "SDL.h"
 
 #include "png.h"
 
 #include "vulture_gfl.h"
 #include "vulture_gen.h"
+#include "vulture_gra.h"
 #include "vulture_win.h"
 #include "vulture_sdl.h"
 
@@ -122,7 +123,7 @@ SDL_Surface *vulture_load_surface(char *srcbuf, unsigned int buflen)
 		Amask = 0x000000FF;
 	}
 
-	img = SDL_AllocSurface(SDL_SWSURFACE | SDL_SRCALPHA, width, height,
+	img = SDL_CreateRGBSurface(0, width, height,
 						32, Rmask, Gmask, Bmask, Amask);
 	if (!img)
 		goto out;
@@ -150,7 +151,7 @@ out:
 	if (!img)
 		return NULL;
 
-	convert = SDL_DisplayFormatAlpha(img);
+	convert = SDL_ConvertSurface(img, vulture_px_format, 0);
 
 	SDL_FreeSurface(img);
 	img = convert;

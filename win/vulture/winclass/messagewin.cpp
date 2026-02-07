@@ -31,7 +31,8 @@ messagewin::messagewin(window *p) : window(p)
         SDL_SWSURFACE, 40, 20, 32, vulture_px_format->Rmask,
         vulture_px_format->Gmask, vulture_px_format->Bmask, 0);
     SDL_FillRect(bg_img, NULL, CLR32_BLACK);
-    SDL_SetAlpha(bg_img, SDL_SRCALPHA, 128);
+    SDL_SetSurfaceAlphaMod(bg_img, 128);
+    SDL_SetSurfaceBlendMode(bg_img, SDL_BLENDMODE_BLEND);
 
     /* init message ring buffer */
     memset(message_ages, 0, V_MESSAGEBUF_SIZE * sizeof(int));

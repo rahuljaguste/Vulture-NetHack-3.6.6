@@ -4,6 +4,9 @@
 #define _vulture_win_h_
 
 #include "vulture_types.h"
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 
 class window;

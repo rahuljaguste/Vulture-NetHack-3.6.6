@@ -255,6 +255,11 @@ struct version_info *version_data;
 const char *filename;
 boolean complain;
 {
+#ifdef __EMSCRIPTEN__
+    /* In the web build, data files are always built together with
+     * the binary, so version checks are unnecessary */
+    return TRUE;
+#else
     if (
 #ifdef VERSION_COMPATIBILITY
         version_data->incarnation < VERSION_COMPATIBILITY
@@ -281,6 +286,7 @@ boolean complain;
         return FALSE;
     }
     return TRUE;
+#endif /* !__EMSCRIPTEN__ */
 }
 
 /* this used to be based on file date and somewhat OS-dependant,

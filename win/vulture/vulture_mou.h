@@ -3,6 +3,9 @@
 #ifndef _vulture_mou_h_
 #define _vulture_mou_h_
 
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 #include <vulture_types.h>
 

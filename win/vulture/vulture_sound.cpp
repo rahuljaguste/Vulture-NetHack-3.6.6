@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "SDL.h"
-#include "SDL_audio.h"
 #include "SDL_mixer.h"
 
 
@@ -27,7 +26,7 @@ vulture_cached_sound *vulture_cached_sounds;
 int vulture_oldest_cached_sound = 0;
 
 /* Music objects */
-SDL_CD *vulture_cdrom = NULL;
+/* CD-ROM support removed (SDL2 has no CD-ROM API) */
 
 
 Mix_Music *vulture_current_music=NULL;
@@ -48,7 +47,7 @@ void vulture_init_sound(void)
 
 	if (vulture_sound_inited) return;
 
-	if (SDL_InitSubSystem(SDL_INIT_AUDIO | SDL_INIT_CDROM) == -1) {
+	if (SDL_InitSubSystem(SDL_INIT_AUDIO) == -1) {
 		/* init failed */
 		vulture_opts.play_effects = 0;
 		vulture_opts.play_music = 0;
@@ -72,11 +71,7 @@ void vulture_init_sound(void)
 		vulture_cached_sounds[i].filename = "";
 	}
 
-	/* Initialize cd playing. */
-	vulture_cdrom = NULL;
-	if (SDL_CDNumDrives() > 0)
-		/* Open default drive */
-		vulture_cdrom = SDL_CDOpen(0);
+	/* CD-ROM support removed (SDL2 has no CD-ROM API) */
 
 	vulture_sound_inited = 1;
 }
@@ -151,28 +146,8 @@ static void vulture_play_song(std::string midifilename)
 
 static void vulture_play_cd_track(std::string cdtrackname)
 {
-	int nTrack;
-
-	if (!vulture_opts.play_music)
-		return;
-
-	/* Parse the track number from the given string */
-	nTrack = atoi(cdtrackname.c_str());
-	if (nTrack < 0) { 
-		vulture_write_log(V_LOG_NOTE, __FILE__, __LINE__,
-                           "Invalid track number [%s]\n", cdtrackname.c_str());
-		return;
-	}
-
-	if (!vulture_cdrom)
-		return;
-
-	if (!CD_INDRIVE(SDL_CDStatus(vulture_cdrom))) {
-		vulture_write_log(V_LOG_DEBUG, __FILE__, __LINE__, "No CD in drive\n");
-		return;
-	}
-
-	SDL_CDPlayTracks(vulture_cdrom, nTrack, 0, 1, 0);
+	/* CD-ROM support removed (SDL2 has no CD-ROM API) */
+	(void)cdtrackname;
 }
 
 
@@ -219,26 +194,37 @@ void vulture_stop_music(void)
 {
 	if (vulture_current_music) Mix_FreeMusic(vulture_current_music);
 	vulture_current_music = NULL;
-
-	/* Stop any CD tracks playing */
-	if (vulture_cdrom) {
-		if (SDL_CDStatus(vulture_cdrom) == CD_PLAYING)
-		SDL_CDStop(vulture_cdrom);
-	}
 }
+
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+
+extern "C" {
+EMSCRIPTEN_KEEPALIVE
+int vulture_toggle_sound(void)
+{
+	static int muted = 0;
+	if (muted) {
+		Mix_Volume(-1, MIX_MAX_VOLUME);
+		Mix_VolumeMusic(MIX_MAX_VOLUME);
+		muted = 0;
+	} else {
+		Mix_Volume(-1, 0);
+		Mix_VolumeMusic(0);
+		muted = 1;
+	}
+	return muted;
+}
+}
+#endif
 
 
 static int vulture_is_music_playing(void)
 {
 	/* Check for external music files (MIDI or MP3) playing */
-	if (Mix_PlayingMusic() > 0) 
+	if (Mix_PlayingMusic() > 0)
 		return 1;
-
-	/* Check for CD tracks playing */
-	if (vulture_cdrom) {
-		if (SDL_CDStatus(vulture_cdrom) == CD_PLAYING)
-		return 1;
-	}  
 
 	/* No music playing */
 	return 0;

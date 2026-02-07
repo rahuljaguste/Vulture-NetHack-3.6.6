@@ -3,10 +3,12 @@
 #ifndef _vulture_sound_h_
 #define _vulture_sound_h_
 
-#include <SDL.h>
-#include <SDL_audio.h>
-#include <SDL_mixer.h>
+#include "SDL.h"
+#include "SDL_mixer.h"
 
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 #include <vector>
 
@@ -43,7 +45,7 @@ extern void vulture_stop_music(void);
 
 
 extern vulture_cached_sound * vulture_cached_sounds;
-extern SDL_CD *vulture_cdrom;
+/* CD-ROM support removed (SDL2 has no CD-ROM API) */
 extern std::vector<vulture_event_sound> vulture_event_sounds;
 extern int vulture_n_background_songs;
 extern int vulture_intros_finished;

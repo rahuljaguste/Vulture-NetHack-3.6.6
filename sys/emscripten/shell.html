@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vulture NetHack 3.6.6</title>
+<style>
+  * { margin: 0; padding: 0; }
+  body { background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; width: 100vw; height: 100vh; }
+  canvas { display: block; image-rendering: pixelated; }
+  #status { color: #aaa; text-align: center; padding: 20px; font-family: sans-serif; position: absolute; top: 0; left: 0; right: 0; }
+  #progress { width: 300px; }
+  .overlay-btn {
+    position: fixed; bottom: 12px; z-index: 10;
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3);
+    color: #ccc; font: 16px sans-serif; padding: 6px 10px; cursor: pointer;
+    border-radius: 4px; line-height: 1;
+  }
+  .overlay-btn:hover { background: rgba(255,255,255,0.3); color: #fff; }
+  #fullscreen-btn { right: 12px; }
+  #res-btn { right: 52px; }
+  #sound-btn { right: 190px; }
+</style>
+</head>
+<body>
+<div id="status">Loading...</div>
+<div><progress hidden id="progress" max="100" value="0"></progress></div>
+<canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+<button id="sound-btn" class="overlay-btn" title="Toggle sound">&#x1F50A;</button>
+<button id="res-btn" class="overlay-btn" title="Change resolution">800&#xD7;600</button>
+<button id="fullscreen-btn" class="overlay-btn" title="Toggle fullscreen (&#x2318;&#x21E7;F)">&#x26F6;</button>
+<script>
+var statusElement = document.getElementById("status");
+var progressElement = document.getElementById("progress");
+var canvasElement = document.getElementById("canvas");
+
+canvasElement.addEventListener("webglcontextlost", function(e) {
+  alert("WebGL context lost. You will need to reload the page.");
+  e.preventDefault();
+}, false);
+
+var Module = {
+  print: function() {
+    var text = Array.prototype.slice.call(arguments).join(" ");
+    console.log(text);
+  },
+  canvas: canvasElement,
+  setStatus: function(text) {
+    if (!text) {
+      statusElement.style.display = "none";
+      progressElement.hidden = true;
+      return;
+    }
+    var m = text.match(/([^(]+)\((\d+(\.\d+)?)\/(\d+)\)/);
+    if (m) {
+      statusElement.innerHTML = m[1];
+      progressElement.value = parseInt(m[2]) * 100;
+      progressElement.max = parseInt(m[4]) * 100;
+      progressElement.hidden = false;
+    } else {
+      statusElement.innerHTML = text;
+      progressElement.hidden = true;
+    }
+  },
+  totalDependencies: 0,
+  monitorRunDependencies: function(left) {
+    this.totalDependencies = Math.max(this.totalDependencies, left);
+    Module.setStatus(left
+      ? "Loading... (" + (this.totalDependencies - left) + "/" + this.totalDependencies + ")"
+      : "All downloads complete.");
+  }
+};
+
+var lastGameW = 0, lastGameH = 0;
+function resizeCanvas() {
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var gameW = canvasElement.width;
+  var gameH = canvasElement.height;
+  if (gameW === 0 || gameH === 0) return;
+  lastGameW = gameW;
+  lastGameH = gameH;
+  var scale = Math.min(w / gameW, h / gameH);
+  canvasElement.style.width = Math.floor(gameW * scale) + "px";
+  canvasElement.style.height = Math.floor(gameH * scale) + "px";
+}
+window.addEventListener("resize", resizeCanvas);
+setInterval(function() {
+  if (canvasElement.width !== lastGameW || canvasElement.height !== lastGameH) {
+    resizeCanvas();
+  }
+}, 500);
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+}
+document.getElementById("fullscreen-btn").addEventListener("click", toggleFullscreen);
+document.addEventListener("keydown", function(e) {
+  if (e.key === "F11" || (e.metaKey && e.shiftKey && e.key === "f")) {
+    e.preventDefault(); toggleFullscreen();
+  }
+});
+document.addEventListener("fullscreenchange", function() {
+  var btn = document.getElementById("fullscreen-btn");
+  btn.innerHTML = document.fullscreenElement ? "&#x2716;" : "&#x26F6;";
+  btn.title = document.fullscreenElement ? "Exit fullscreen" : "Toggle fullscreen (\u2318\u21E7F)";
+  resizeCanvas();
+});
+
+/* Sound toggle — calls C function to mute/unmute SDL_mixer */
+function toggleSound() {
+  if (typeof Module._vulture_toggle_sound !== "function") return;
+  var muted = Module._vulture_toggle_sound();
+  var btn = document.getElementById("sound-btn");
+  btn.innerHTML = muted ? "&#x1F507;" : "&#x1F50A;";
+  btn.title = muted ? "Unmute sound" : "Mute sound";
+}
+document.getElementById("sound-btn").addEventListener("click", toggleSound);
+
+/* Resolution cycling — calls C function to resize the game */
+var resPresets = [
+  [800, 600],
+  [1024, 768],
+  [1280, 960],
+  [1600, 1200]
+];
+var resIndex = 0;
+function buildResOptions() {
+  /* Add browser window size as the last option if larger than biggest preset */
+  var maxW = window.innerWidth, maxH = window.innerHeight;
+  var last = resPresets[resPresets.length - 1];
+  /* Remove any previous "native" entry beyond the fixed presets */
+  while (resPresets.length > 4) resPresets.pop();
+  if (maxW > last[0] || maxH > last[1]) {
+    resPresets.push([maxW, maxH]);
+  }
+  /* Also remove presets larger than the browser window */
+  resPresets = resPresets.filter(function(p) { return p[0] <= maxW && p[1] <= maxH; });
+  if (resPresets.length === 0) resPresets.push([800, 600]);
+}
+function cycleResolution() {
+  if (typeof Module._vulture_change_resolution !== "function") return;
+  buildResOptions();
+  resIndex = (resIndex + 1) % resPresets.length;
+  var w = resPresets[resIndex][0], h = resPresets[resIndex][1];
+  Module._vulture_change_resolution(w, h);
+  var btn = document.getElementById("res-btn");
+  btn.innerHTML = w + "\u00D7" + h;
+  btn.title = "Resolution: " + w + "\u00D7" + h;
+}
+document.getElementById("res-btn").addEventListener("click", cycleResolution);
+/* Set initial label once the game has started and we know the actual resolution */
+setTimeout(function() {
+  buildResOptions();
+  var cw = canvasElement.width, ch = canvasElement.height;
+  if (cw > 0 && ch > 0) {
+    /* Find matching preset index, or default to last */
+    for (var i = 0; i < resPresets.length; i++) {
+      if (resPresets[i][0] === cw && resPresets[i][1] === ch) { resIndex = i; break; }
+    }
+    var btn = document.getElementById("res-btn");
+    btn.innerHTML = cw + "\u00D7" + ch;
+    btn.title = "Resolution: " + cw + "\u00D7" + ch;
+  }
+}, 3000);
+
+/* Auto-focus canvas for keyboard input */
+canvasElement.addEventListener("click", function() { canvasElement.focus(); });
+setTimeout(function() { canvasElement.focus(); }, 1000);
+
+
+Module.setStatus("Loading...");
+window.onerror = function(event) {
+  if (typeof event === "string" && event.indexOf("ResizeObserver") !== -1) return;
+  Module.setStatus("Exception thrown, see JavaScript console");
+  Module.setStatus = function(text) {
+    if (text) console.error("[post-exception status] " + text);
+  };
+};
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

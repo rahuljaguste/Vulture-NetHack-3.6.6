@@ -3,6 +3,9 @@
 #ifndef _contextmenu_h_
 #define _contextmenu_h_
 
+#ifdef yn
+#undef yn
+#endif
 #include <utility>
 #include <vector>
 
@@ -23,7 +26,7 @@ class contextmenu : public window
                                                    int mouse_y, int button,
                                                    int state);
     virtual eventresult handle_keydown_event(window *target, void *result,
-                                             SDL_keysym keysym);
+                                             SDL_Keysym keysym);
     virtual void layout(void);
     void add_item(const char *label, int menuid);
 

@@ -83,7 +83,10 @@ std::string vulture_make_filename(std::string subdir1, std::string subdir2, std:
 /* locate the data dir and chdir there so that data files can be loaded */
 int vulture_chdir_to_datadir(char * argv0)
 {
-#if !defined(_WIN32) && !defined(CHDIR) && defined(RELOCATEABLE)
+#ifdef __EMSCRIPTEN__
+	/* In the web build, data is preloaded at fixed paths */
+	return 0;
+#elif !defined(_WIN32) && !defined(CHDIR) && defined(RELOCATEABLE)
 	int len = 1024;
 	char fullname[1024];
 	char testfile[1024];
@@ -148,10 +151,15 @@ int vulture_chdir_to_datadir(char * argv0)
 
 void vulture_init_gamepath(void)
 {
+#ifdef __EMSCRIPTEN__
+	/* In the web build, game data is preloaded at /gamedata */
+	vulture_game_path = "/gamedata";
+#else
 /* Get starting directory, and save it for reference */
 	char hackdir[1024];
 	getcwd(hackdir, sizeof(hackdir));
 	vulture_game_path = hackdir;
+#endif
 }
 
 

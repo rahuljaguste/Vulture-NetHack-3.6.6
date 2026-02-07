@@ -5,6 +5,9 @@
 
 #include "mainwin.h"
 #include "menuitem.h"
+#ifdef yn
+#undef yn
+#endif
 #include <list>
 
 #define MAX_MENU_HEIGHT 800

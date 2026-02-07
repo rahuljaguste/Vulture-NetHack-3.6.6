@@ -40,8 +40,8 @@ SHELL=/bin/sh
 # for Atari
 # SHELL=E:/GEMINI2/MUPFEL.TTP
 
-# Normally, the C compiler driver is used for linking:
-LINK=$(CC)
+# Use the C++ compiler for linking (needed for Vulture's C++ code):
+LINK=$(CXX)
 
 # Pick the SYSSRC and SYSOBJ lines corresponding to your desired operating
 # system.
@@ -171,15 +171,8 @@ GNOMEINC=-I/usr/lib/glib/include -I/usr/lib/gnome-libs/include -I../win/gnome
 # CFLAGS = -g -I../include
 
 # VULTURECFLAGS will be passed to the sub-makefile for vulture
-OS = $(shell uname -s)
-ifeq ($(OS),FreeBSD)
-	SDL_CONFIG = sdl11-config
-	SDLMAIN = -lSDLmain-1.1
-else
-	SDL_CONFIG = sdl-config
-	SDLMAIN = -lSDLmain
-endif
-VULTURECFLAGS = -Wall -g -I /opt/local/include
+SDL_CONFIG = sdl2-config
+VULTURECFLAGS = -Wall -g -I /opt/homebrew/include
 CFLAGS = -g -I../include -I ../win/vulture $(shell $(SDL_CONFIG) --cflags) -DVULTURE_NETHACK -DVULTURE_NETHACK_3_6_0
 #LFLAGS = 
 
@@ -310,9 +303,9 @@ else
 endif
 
 # SDL libraries for Vulture's Eye
-WINVULTURELIB = `$(SDL_CONFIG) --libs` $(SDLMAIN) -lSDL_mixer  -lSDL_ttf -lpng -lz -logg -lvorbis -ltheoradec -lpthread
+WINVULTURELIB = `$(SDL_CONFIG) --libs` -lSDL2_mixer -lSDL2_ttf -lpng -lz -logg -lvorbis -ltheoradec -lpthread
 ifeq ($(OS),Darwin)
-	WINVULTURELIB += -lstdc++
+	WINVULTURELIB += -lc++
 endif
 
 #
@@ -628,7 +621,7 @@ objects.o:
 	@$(MAKE) -C ../win/vulture/ VARIANT_NAME=nethack VARIANT_VERSION=3.6.0 BASECFLAGS="$(VULTURECFLAGS)"
 
 ../win/vulture/build_nethack_3_6_0/theoraplay.o: ../win/vulture/vendor/theoraplay/theoraplay.c
-	@$(CC) -c ../win/vulture/vendor/theoraplay/theoraplay.c -o ../win/vulture/build_nethack_3_6_0/theoraplay.o
+	@$(CC) -I /opt/homebrew/include -c ../win/vulture/vendor/theoraplay/theoraplay.c -o ../win/vulture/build_nethack_3_6_0/theoraplay.o
 
 # Qt windowport meta-object-compiler output
 qt_kde0.moc: ../include/qt_kde0.h

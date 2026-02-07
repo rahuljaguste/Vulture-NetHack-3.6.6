@@ -11,15 +11,30 @@
 #include <ctype.h>
 #include <sys/stat.h>
 #include <signal.h>
+#ifndef __EMSCRIPTEN__
 #include <pwd.h>
+#endif
 #ifndef O_RDONLY
 #include <fcntl.h>
 #endif
 
-#ifdef VULTURE_GRAPHICS
-# include "SDL.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
 #endif
 
+#ifdef VULTURE_GRAPHICS
+#define SDL_MAIN_HANDLED
+#ifdef yn
+/* Save yn macro, undef it to avoid conflict with math.h's yn(), re-define after */
+#undef yn
+#include "SDL.h"
+#define yn(query) yn_function(query, ynchars, 'n')
+#else
+#include "SDL.h"
+#endif
+#endif
+
+#ifndef __EMSCRIPTEN__
 #if !defined(_BULL_SOURCE) && !defined(__sgi) && !defined(_M_UNIX)
 #if !defined(SUNOS4) && !(defined(ULTRIX) && defined(__GNUC__))
 #if defined(POSIX_TYPES) || defined(SVR4) || defined(HPUX)
@@ -30,6 +45,7 @@ extern struct passwd *FDECL(getpwuid, (int));
 #endif
 #endif
 extern struct passwd *FDECL(getpwnam, (const char *));
+#endif /* !__EMSCRIPTEN__ */
 #ifdef CHDIR
 static void FDECL(chdirx, (const char *, BOOLEAN_P));
 #endif /* CHDIR */
@@ -47,12 +63,12 @@ extern void NDECL(init_linux_cons);
 
 static void NDECL(wd_message);
 static boolean wiz_error_flag = FALSE;
+#ifndef __EMSCRIPTEN__
 static struct passwd *NDECL(get_unix_pw);
+#endif
 
 int
-main(argc, argv)
-int argc;
-char *argv[];
+main(int argc, char *argv[])
 {
     register int fd;
 #ifdef CHDIR
@@ -98,7 +114,9 @@ char *argv[];
 
     hname = argv[0];
     hackpid = getpid();
+#ifndef __EMSCRIPTEN__
     (void) umask(0777 & ~FCMASK);
+#endif
 
     choose_windows(DEFAULT_WINDOW_SYS);
 
@@ -256,9 +274,11 @@ char *argv[];
         /* use character name rather than lock letter for file names */
         locknum = 0;
     } else {
+#ifndef __EMSCRIPTEN__
         /* suppress interrupts while processing lock file */
         (void) signal(SIGQUIT, SIG_IGN);
         (void) signal(SIGINT, SIG_IGN);
+#endif
     }
 
     dlb_init(); /* must be before newgame() */
@@ -618,6 +638,10 @@ port_help()
 boolean
 authorize_wizard_mode()
 {
+#ifdef __EMSCRIPTEN__
+    /* No user accounts in Emscripten; allow wizard mode */
+    return TRUE;
+#else
     struct passwd *pw = get_unix_pw();
 
     if (pw && sysopt.wizards && sysopt.wizards[0]) {
@@ -626,6 +650,7 @@ authorize_wizard_mode()
     }
     wiz_error_flag = TRUE; /* not being allowed into wizard mode */
     return FALSE;
+#endif
 }
 
 static void
@@ -664,6 +689,24 @@ char *name;
     return;
 }
 
+#ifdef __EMSCRIPTEN__
+boolean
+check_user_string(optstr)
+char *optstr;
+{
+    /* No user accounts in Emscripten; allow any user */
+    return TRUE;
+}
+
+char *
+get_login_name()
+{
+    static char buf[BUFSZ];
+    buf[0] = '\0';
+    (void)strcpy(buf, "player");
+    return buf;
+}
+#else /* !__EMSCRIPTEN__ */
 boolean
 check_user_string(optstr)
 char *optstr;
@@ -744,8 +787,9 @@ get_login_name()
 
     return buf;
 }
+#endif /* !__EMSCRIPTEN__ */
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && !defined(__EMSCRIPTEN__)
 extern int errno;
 
 void
@@ -781,7 +825,7 @@ char *buf;
  error:
     raw_printf(errfmt, strerror(errno));
 }
-#endif /* __APPLE__ */
+#endif /* __APPLE__ && !__EMSCRIPTEN__ */
 
 unsigned long
 sys_random_seed()

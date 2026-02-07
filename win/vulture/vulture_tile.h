@@ -3,6 +3,9 @@
 #ifndef _vulture_tile_h_
 #define _vulture_tile_h_
 
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 #include <SDL.h>
 #include "vulture_types.h"

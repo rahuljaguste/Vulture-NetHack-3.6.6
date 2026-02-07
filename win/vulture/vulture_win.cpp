@@ -2,6 +2,9 @@
 
 #include <ctype.h>
 #include "SDL.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 extern "C" {
 #include "hack.h"
@@ -76,7 +79,7 @@ int vulture_get_input(int force_x, int force_y, const char *ques, char *input)
 {
 	int response;
   bool isRootWindow = false;
-  
+
 	inputdialog *win = new inputdialog(ROOTWIN, ques, 256, force_x, force_y);
 
 	vulture_write_log(V_LOG_DEBUG, __FILE__, __LINE__, "vulture_get_input(%d,%d,%s) {entry}\n", force_x, force_y, ques);
@@ -184,7 +187,11 @@ void vulture_event_dispatcher(void * result, int resulttype, window * topwin)
 
 		event_result = vulture_event_dispatcher_core(&event, result, topwin);
 
+#ifdef __EMSCRIPTEN__
+		emscripten_sleep(1);
+#else
 		SDL_Delay(20);
+#endif
 	}
 }
 
@@ -464,11 +471,18 @@ void vulture_win_resize(int width, int height)
 
 	current = topwin = ROOTWIN;
 
-	event.type = SDL_VIDEORESIZE;
-	event.resize.w = width;
-	event.resize.h = height;
+	event.type = SDL_WINDOWEVENT;
+	event.window.event = SDL_WINDOWEVENT_RESIZED;
+	event.window.data1 = width;
+	event.window.data2 = height;
 
 	current->event_handler(current, &dummy, &event);
+
+	/* ROOTWIN has no parent, so update its abs position directly */
+	if (!current->parent) {
+		current->abs_x = current->x;
+		current->abs_y = current->y;
+	}
 
 	do {
 		current = current->walk_winlist(&descend);

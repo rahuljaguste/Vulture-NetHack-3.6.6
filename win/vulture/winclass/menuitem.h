@@ -3,6 +3,9 @@
 #ifndef _menuitem_h_
 #define _menuitem_h_
 
+#ifdef yn
+#undef yn
+#endif
 #include <string>
 
 class menuitem

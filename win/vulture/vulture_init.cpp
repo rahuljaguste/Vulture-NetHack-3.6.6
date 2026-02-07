@@ -21,7 +21,9 @@
 #include "vulture_opt.h"
 
 #include "winclass/introwin.h"
-#include "vendor/theoraplay/theoraplay.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 static void vulture_show_intro(std::string introscript_name);
 
@@ -442,14 +444,29 @@ static void vulture_init_colors()
 	/* set up the colors used in the game
 	* the only good way to do this without needing graphics to have been loaded first
 	* is to create a surface here which we then put into display format + alpha ourselves */
-	SDL_Surface * pixel = SDL_CreateRGBSurface(SDL_SWSURFACE | SDL_SRCALPHA, 1, 1, 32,
+	/* SDL2: SDL_DisplayFormatAlpha is gone; use the screen's format directly */
+	SDL_Surface * pixel = SDL_CreateRGBSurface(0, 1, 1, 32,
 								0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000);
-	SDL_Surface * reformatted = SDL_DisplayFormatAlpha(pixel);
 
 	vulture_px_format = new SDL_PixelFormat;
-	memcpy(vulture_px_format, reformatted->format, sizeof(SDL_PixelFormat));
+	if (vulture_screen)
+		memcpy(vulture_px_format, vulture_screen->format, sizeof(SDL_PixelFormat));
+	else
+		memcpy(vulture_px_format, pixel->format, sizeof(SDL_PixelFormat));
 
-	SDL_FreeSurface(reformatted);
+	/* The screen surface may not have an alpha channel (e.g. Emscripten returns
+	 * XRGB8888). We need alpha for tile transparency, so add an alpha mask
+	 * in the unused byte position. */
+	if (vulture_px_format->Amask == 0 && vulture_px_format->BitsPerPixel == 32) {
+		Uint32 used = vulture_px_format->Rmask | vulture_px_format->Gmask | vulture_px_format->Bmask;
+		vulture_px_format->Amask = ~used;
+		Uint32 m = vulture_px_format->Amask;
+		int shift = 0;
+		while (m && !(m & 1)) { shift++; m >>= 1; }
+		vulture_px_format->Ashift = shift;
+		vulture_px_format->Aloss = 0;
+	}
+
 	SDL_FreeSurface(pixel);
 
 	CLR32_BLACK      = SDL_MapRGBA(vulture_px_format, 0,0,0, 0xff);

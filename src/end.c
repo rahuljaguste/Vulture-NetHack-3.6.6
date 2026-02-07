@@ -67,6 +67,12 @@ STATIC_DCL int NDECL(num_extinct);
 
 #if defined(__BEOS__) || defined(MICRO) || defined(OS2)
 extern void FDECL(nethack_exit, (int));
+#elif defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+static void nethack_exit(int status) {
+    emscripten_run_script("setTimeout(function() { location.reload(); }, 2000);");
+    emscripten_force_exit(status);
+}
 #else
 #define nethack_exit exit
 #endif
@@ -254,7 +260,7 @@ NH_panictrace_libc()
 static boolean
 NH_panictrace_gdb()
 {
-#ifdef PANICTRACE_GDB
+#if defined(PANICTRACE_GDB) && !defined(__EMSCRIPTEN__)
     /* A (more) generic method to get a stack trace - invoke
      * gdb on ourself. */
     const char *gdbpath = GDBVAR;
@@ -282,7 +288,7 @@ NH_panictrace_gdb()
     }
 #else
     return FALSE;
-#endif /* !PANICTRACE_GDB */
+#endif /* !PANICTRACE_GDB || __EMSCRIPTEN__ */
 }
 #endif /* PANICTRACE */
 

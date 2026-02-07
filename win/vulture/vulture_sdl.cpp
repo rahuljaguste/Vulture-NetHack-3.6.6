@@ -2,7 +2,7 @@
 
 /*-------------------------------------------------------------------
 vulture_sdl.c : SDL API calls for Vulture's windowing system.
-Requires SDL 1.1 or newer.
+Uses SDL 2.
 -------------------------------------------------------------------*/
 
 #include <stdio.h>
@@ -12,10 +12,10 @@ Requires SDL 1.1 or newer.
 #endif
 #include <stdarg.h>
 #include "vulture_sound.h"
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 #include "SDL.h"
-#include "SDL_video.h"
-#include "SDL_error.h"
-#include "SDL_audio.h"
 #include "SDL_mixer.h"
 #include "vulture_gen.h"
 #include "vulture_gfl.h"
@@ -37,9 +37,8 @@ Requires SDL 1.1 or newer.
 static int fs_message_printed = 0;
 static int have_mouse_focus = 1;
 
-static int SDL_STANDARD_FLAGS = SDL_HWSURFACE | SDL_ASYNCBLIT;
-static int SDL_FULLSCREEN_FLAGS = SDL_STANDARD_FLAGS | SDL_FULLSCREEN;
-static int SDL_WINDOWED_FLAGS = SDL_STANDARD_FLAGS | SDL_RESIZABLE;
+/* SDL2 window */
+SDL_Window *vulture_sdl_window = NULL;
 
 /* Graphics objects */
 SDL_Surface *vulture_screen;             /* Graphics surface */
@@ -68,21 +67,46 @@ void vulture_wait_event(SDL_Event * event, int wait_timeout)
 	{
 		event->type = 0;
 
+#ifdef __EMSCRIPTEN__
+		/* Poll events, skipping only internal sentinel events */
+		while (SDL_PollEvent(event)) {
+			if (event->type == 0x7F00)
+				continue; /* skip SDL_POLLSENTINEL */
+			break; /* got a real event */
+		}
+#else
 		while (SDL_PollEvent(event) && event->type == SDL_MOUSEMOTION)
 			/* do nothing, we're merely dequeueing unhandled mousemotion events */ ;
+#endif
 
-		if (!event->type && !SDL_WaitEvent(event))
+		if (!event->type) {
+#ifdef __EMSCRIPTEN__
+			emscripten_sleep(16); /* Yield to browser event loop (~60fps) */
 			continue;
+#else
+			if (!SDL_WaitEvent(event))
+				continue;
+#endif
+		}
 
 		vulture_handle_global_event(event);
 
 		if ((event->type == SDL_KEYDOWN && !is_modifier_key(event->key.keysym.sym)) ||
 			event->type == SDL_MOUSEBUTTONDOWN ||
 			event->type == SDL_MOUSEBUTTONUP ||
+#ifdef __EMSCRIPTEN__
+			/* In Emscripten, always accept timer events (no mouse focus tracking) */
+			event->type == SDL_TIMEREVENT ||
+#else
 			/* send timer events only while the mouse is in the window */
 			(event->type == SDL_TIMEREVENT && have_mouse_focus) ||
+#endif
 			event->type == SDL_MOUSEMOTION)
 			done = 1;
+#ifdef __EMSCRIPTEN__
+		else
+			emscripten_sleep(1); /* Yield to browser event loop */
+#endif
 	}
 
 	SDL_RemoveTimer(sleeptimer);
@@ -97,8 +121,20 @@ int vulture_poll_event(SDL_Event * event)
 	{
 		event->type = 0;
 
+#ifdef __EMSCRIPTEN__
+		while (SDL_PollEvent(event)) {
+			if (event->type == 0x7F00)
+				continue; /* skip SDL_POLLSENTINEL */
+			if (event->type == SDL_MOUSEMOTION) {
+				vulture_handle_global_event(event);
+				continue;
+			}
+			break;
+		}
+#else
 		while (SDL_PollEvent(event) && event->type == SDL_MOUSEMOTION)
 			/* do nothing, we're merely dequeueing unhandled mousemotion events */ ;
+#endif
 
 		if (!event->type)
 			/* no events queued */
@@ -131,8 +167,20 @@ void vulture_wait_input(SDL_Event * event, int wait_timeout)
 	/* loop until we have an interesting event */
 	while (!done)
 	{
+#ifdef __EMSCRIPTEN__
+		if (!SDL_PollEvent(event)) {
+			emscripten_sleep(1); /* Yield to browser event loop */
+			continue;
+		}
+		/* Filter out SDL_POLLSENTINEL internal events */
+		if (event->type == 0x7F00) {
+			emscripten_sleep(1);
+			continue;
+		}
+#else
 		if (!SDL_WaitEvent(event))
 			continue;
+#endif
 
 		vulture_handle_global_event(event);
 
@@ -140,6 +188,10 @@ void vulture_wait_input(SDL_Event * event, int wait_timeout)
 			event->type == SDL_MOUSEBUTTONUP ||
 			event->type == SDL_TIMEREVENT)
 			done = 1;
+#ifdef __EMSCRIPTEN__
+		else
+			emscripten_sleep(1); /* Yield to browser event loop */
+#endif
 	}
 
 	SDL_RemoveTimer(sleeptimer);
@@ -154,13 +206,29 @@ void vulture_wait_key(SDL_Event * event)
 
 	while (!done)
 	{
+#ifdef __EMSCRIPTEN__
+		if (!SDL_PollEvent(event)) {
+			emscripten_sleep(1); /* Yield to browser event loop */
+			continue;
+		}
+		/* Filter out SDL_POLLSENTINEL internal events */
+		if (event->type == 0x7F00) {
+			emscripten_sleep(1);
+			continue;
+		}
+#else
 		if (!SDL_WaitEvent(event))
 			continue;
+#endif
 
 		vulture_handle_global_event(event);
 
 		if (event->type == SDL_KEYDOWN)
 			done = 1;
+#ifdef __EMSCRIPTEN__
+		else
+			emscripten_sleep(1); /* Yield to browser event loop */
+#endif
 	}
 }
 
@@ -180,33 +248,29 @@ Uint32 vulture_timer_callback(Uint32 interval, void * param)
 
 static void vulture_set_fullscreen(void)
 {
-	SDL_Rect **modes;
-	int newheight = 0;
-	int newwidth = 0;
-	int bestmode = 0;
-	int i;
+	/* SDL2: use desktop display mode for fullscreen */
+	SDL_DisplayMode dm;
+	int newwidth, newheight;
 
-	/* Get available fullscreen/hardware modes */
-	modes = SDL_ListModes(NULL, SDL_FULLSCREEN);
-
-	/* Check if our resolution is restricted */
-	if(modes == (SDL_Rect **)-1){
+	if (SDL_GetDesktopDisplayMode(0, &dm) == 0) {
+		newwidth = dm.w;
+		newheight = dm.h;
+	} else {
+		newwidth = vulture_opts.width;
 		newheight = vulture_opts.height;
-		newwidth  = vulture_opts.width;
-	}
-	else{
-		/* find a mode that is >= the dimensions in the config file */
-		for (i = 0; modes[i]; i++)
-		{
-			if (modes[i]->h >= vulture_opts.height &&
-				modes[i]->w >= vulture_opts.width)
-				bestmode = i;
-		}
-		newheight = modes[bestmode]->h;
-		newwidth  = modes[bestmode]->w;
 	}
 
-	vulture_screen = SDL_SetVideoMode(newwidth, newheight, 0, SDL_FULLSCREEN_FLAGS );
+	if (vulture_sdl_window) {
+		SDL_SetWindowSize(vulture_sdl_window, newwidth, newheight);
+		SDL_SetWindowFullscreen(vulture_sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+		vulture_screen = SDL_GetWindowSurface(vulture_sdl_window);
+	} else {
+		vulture_sdl_window = SDL_CreateWindow("Vulture NetHack",
+			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+			newwidth, newheight, SDL_WINDOW_FULLSCREEN_DESKTOP);
+		if (vulture_sdl_window)
+			vulture_screen = SDL_GetWindowSurface(vulture_sdl_window);
+	}
 
 	vulture_win_resize(newwidth, newheight);
 }
@@ -215,7 +279,18 @@ static void vulture_set_fullscreen(void)
 
 static void vulture_set_windowed()
 {
-	vulture_screen = SDL_SetVideoMode(vulture_opts.width, vulture_opts.height, 0, SDL_WINDOWED_FLAGS );
+	/* SDL2: create or resize window */
+	if (vulture_sdl_window) {
+		SDL_SetWindowFullscreen(vulture_sdl_window, 0);
+		SDL_SetWindowSize(vulture_sdl_window, vulture_opts.width, vulture_opts.height);
+		vulture_screen = SDL_GetWindowSurface(vulture_sdl_window);
+	} else {
+		vulture_sdl_window = SDL_CreateWindow("Vulture NetHack",
+			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+			vulture_opts.width, vulture_opts.height, SDL_WINDOW_RESIZABLE);
+		if (vulture_sdl_window)
+			vulture_screen = SDL_GetWindowSurface(vulture_sdl_window);
+	}
 	vulture_win_resize(vulture_opts.width, vulture_opts.height);
 }
 
@@ -236,8 +311,8 @@ int vulture_handle_global_event(SDL_Event * event)
 	static int quitting = 0;
 	static int need_kludge = 0;
 	static point actual_winsize = {0,0};
-	
-	/* blarg. see the SDL_VIDEORESIZE case */
+
+	/* blarg. see the SDL_WINDOWEVENT_RESIZED case */
 	if (need_kludge &&
 		(actual_winsize.x != vulture_opts.width ||
 		actual_winsize.y != vulture_opts.height))
@@ -250,15 +325,41 @@ int vulture_handle_global_event(SDL_Event * event)
 
 	switch (event->type)
 	{
-		case SDL_ACTIVEEVENT:
-			if (event->active.gain && event->active.state == SDL_APPACTIVE)
-				vulture_refresh();
-			else if (event->active.state == SDL_APPMOUSEFOCUS)
-				have_mouse_focus = event->active.gain;
-			break;
-
-		case SDL_VIDEOEXPOSE:
-			vulture_refresh();
+		case SDL_WINDOWEVENT:
+			switch (event->window.event) {
+				case SDL_WINDOWEVENT_EXPOSED:
+					vulture_refresh();
+					break;
+				case SDL_WINDOWEVENT_FOCUS_GAINED:
+					vulture_refresh();
+					break;
+				case SDL_WINDOWEVENT_ENTER:
+					have_mouse_focus = 1;
+					break;
+				case SDL_WINDOWEVENT_LEAVE:
+					have_mouse_focus = 0;
+					break;
+				case SDL_WINDOWEVENT_RESIZED:
+				{
+					int rw = event->window.data1;
+					int rh = event->window.data2;
+					actual_winsize.x = rw;
+					actual_winsize.y = rh;
+					vulture_opts.width = rw;
+					if (rw < 540) {
+						need_kludge = 1;
+						vulture_opts.width = 540;
+					}
+					vulture_opts.height = rh;
+					if (rh < 300) {
+						need_kludge = 1;
+						vulture_opts.height = 300;
+					}
+					vulture_screen = SDL_GetWindowSurface(vulture_sdl_window);
+					vulture_set_screensize();
+					break;
+				}
+			}
 			break;
 
 		case SDL_QUIT:
@@ -275,7 +376,7 @@ int vulture_handle_global_event(SDL_Event * event)
 				/* to make sure we still save bones, just set stop printing flag */
 				program_state.stopprint++;
 				/* and send keyboard input as if user pressed ESC */
-				vulture_eventstack_add('\033', -1, -1, V_RESPOND_POSKEY); 
+				vulture_eventstack_add('\033', -1, -1, V_RESPOND_POSKEY);
 			}
 			else if (!program_state.something_worth_saving)
 			{
@@ -402,28 +503,6 @@ int vulture_handle_global_event(SDL_Event * event)
 				vulture_mouse_restore_bg();
 			}
 			break;
-
-		case SDL_VIDEORESIZE:
-			actual_winsize.x = event->resize.w;
-			actual_winsize.y = event->resize.h;
-
-			vulture_opts.width = event->resize.w;
-			if (event->resize.w < 540)
-			{
-				need_kludge = 1;
-				vulture_opts.width = 540;
-			}
-			vulture_opts.height = event->resize.h;
-			if (event->resize.h < 300)
-			{
-				need_kludge = 1;
-				vulture_opts.height = 300;
-			}
-
-			/* SDL will not actually change the size of the window here, only the size of the buffer.
-			* therefore we may need_kludge to call SDL_SetVideoMode AGAIN to set the window size. */
-      vulture_set_screensize();
-			break;
 	}
 
 	return 0;
@@ -439,7 +518,7 @@ static void vulture_sdl_error(const char *file, int line, const char *what)
 
 void vulture_enter_graphics_mode()
 {
-	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER|SDL_INIT_NOPARACHUTE) == -1)
+	if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) == -1)
 	{
 		vulture_sdl_error(__FILE__, __LINE__, "Could not initialize SDL");
 		exit(1);
@@ -447,18 +526,17 @@ void vulture_enter_graphics_mode()
 
 	/* Initialize the event handlers */
 	atexit(SDL_Quit);
-	/* Filter key, mouse and quit events */
-	/*  SDL_SetEventFilter(FilterEvents); */
-	/* Enable key repeat */
-	SDL_EnableKeyRepeat(SDL_DEFAULT_REPEAT_DELAY, SDL_DEFAULT_REPEAT_INTERVAL);  
-	SDL_WM_SetCaption(VERSION_ID,NULL);
 
   vulture_set_screensize();
 
 	/* no screen: maybe the configured video mode didn't work */
 	if (!vulture_screen) {
 		vulture_sdl_error(__FILE__, __LINE__, "Failed to set configured video mode, trying to fall back to 800x600 windowed");
-		vulture_screen = SDL_SetVideoMode(800, 600, 0, SDL_WINDOWED_FLAGS );
+		vulture_sdl_window = SDL_CreateWindow("Vulture NetHack",
+			SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
+			800, 600, SDL_WINDOW_RESIZABLE);
+		if (vulture_sdl_window)
+			vulture_screen = SDL_GetWindowSurface(vulture_sdl_window);
 		vulture_opts.fullscreen = 0;
 	}
 
@@ -469,22 +547,45 @@ void vulture_enter_graphics_mode()
 		exit(1);
 	}
 
+	if (vulture_sdl_window)
+		SDL_SetWindowTitle(vulture_sdl_window, VERSION_ID);
+
 	/* Don't show double cursor */
 	SDL_ShowCursor(SDL_DISABLE);
-
-	/* Enable Unicode translation. Necessary to match keypresses to characters */
-	SDL_EnableUNICODE(1);
 }
 
 
+
+#ifdef __EMSCRIPTEN__
+extern "C" {
+EMSCRIPTEN_KEEPALIVE
+void vulture_change_resolution(int w, int h)
+{
+	if (w < 800) w = 800;
+	if (h < 600) h = 600;
+	/* Push a resize event onto the SDL queue so the game loop handles it
+	 * safely instead of resizing mid-frame (reentrancy crash). */
+	SDL_Event ev;
+	memset(&ev, 0, sizeof(ev));
+	ev.type = SDL_WINDOWEVENT;
+	ev.window.event = SDL_WINDOWEVENT_RESIZED;
+	ev.window.data1 = w;
+	ev.window.data2 = h;
+	SDL_PushEvent(&ev);
+}
+}
+#endif
 
 void vulture_exit_graphics_mode(void)
 {
 	SDL_ShowCursor(SDL_ENABLE);
 
 	vulture_stop_music();
-	if (vulture_cdrom) SDL_CDClose(vulture_cdrom);
-	vulture_cdrom = NULL;
+
+	if (vulture_sdl_window) {
+		SDL_DestroyWindow(vulture_sdl_window);
+		vulture_sdl_window = NULL;
+	}
 	SDL_Quit();
 }
 
@@ -492,8 +593,8 @@ void vulture_exit_graphics_mode(void)
 
 void vulture_refresh_region
 (
-	int x1, int y1, 
-	int x2, int y2 
+	int x1, int y1,
+	int x2, int y2
 )
 {
 	SDL_Rect rect;
@@ -502,20 +603,20 @@ void vulture_refresh_region
 	* a region that used to be inside the window, but isn't anymore */
 	x1 = (x1 >= vulture_screen->w) ? vulture_screen->w - 1 : x1;
 	y1 = (y1 >= vulture_screen->h) ? vulture_screen->h - 1 : y1;
-	
+
 	/* Clip edges (yes, really, otherwise we crash...) */
 	rect.x = (x1 < 0) ? 0 : x1;
 	rect.y = (y1 < 0) ? 0 : y1;
 	rect.w = ((x2 >= vulture_screen->w) ? vulture_screen->w - 1 : x2) - rect.x + 1;
 	rect.h = ((y2 >= vulture_screen->h) ? vulture_screen->h - 1 : y2) - rect.y + 1;
 
-	SDL_UpdateRects(vulture_screen, 1, &rect);
+	SDL_UpdateWindowSurfaceRects(vulture_sdl_window, &rect, 1);
 }
 
 
 
 void vulture_refresh(void)
 {
-	SDL_Flip( vulture_screen );
+	if (vulture_sdl_window)
+		SDL_UpdateWindowSurface(vulture_sdl_window);
 }
-
