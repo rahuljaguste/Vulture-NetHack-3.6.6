@@ -28,6 +28,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential libsdl2-dev libsdl2-mixer-dev libsdl2-ttf-dev libpng-dev libogg-dev libvorbis-dev libtheora-dev bison flex groff
 
+      - name: Preserve pre-generated parser files
+        run: touch win/vulture/build_nethack_3_6_0/vulture_tileconfig.parser.cpp win/vulture/build_nethack_3_6_0/vulture_tileconfig.parser.h win/vulture/build_nethack_3_6_0/vulture_tileconfig.lexer.cpp
+
       - name: Build native version (generates required files)
         run: |
           cd sys/unix && sh setup.sh && cd ../..

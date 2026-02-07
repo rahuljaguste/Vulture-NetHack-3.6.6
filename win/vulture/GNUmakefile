@@ -64,9 +64,8 @@ $(OUTPUT_OBJ): $(VOBJ)
 $(BUILDDIR)/vulture_tileconfig.parser.cpp $(BUILDDIR)/vulture_tileconfig.parser.h: vulture_tileconfig.parser.y
 	@echo generating parser
 	@mkdir -p $(BUILDDIR)/winclass
-	@bison -d vulture_tileconfig.parser.y -o $(BUILDDIR)/vulture_tileconfig.parser.tmp.cpp
-	@mv $(BUILDDIR)/vulture_tileconfig.parser.tmp.cpp $(BUILDDIR)/vulture_tileconfig.parser.cpp
-	@mv $(BUILDDIR)/vulture_tileconfig.parser.tmp.hpp $(BUILDDIR)/vulture_tileconfig.parser.h
+	@bison -d vulture_tileconfig.parser.y -o $(BUILDDIR)/vulture_tileconfig.parser.c
+	@mv $(BUILDDIR)/vulture_tileconfig.parser.c $(BUILDDIR)/vulture_tileconfig.parser.cpp
 
 $(BUILDDIR)/vulture_tileconfig.lexer.cpp: vulture_tileconfig.lexer.l
 	@echo generating lexer
