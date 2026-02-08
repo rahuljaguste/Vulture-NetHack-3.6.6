@@ -155,6 +155,17 @@ if [ ! -f "$UTIL_WASM_DIR/dlb.js" ]; then
 else
     echo "  dlb already built."
 fi
+
+if [ ! -f "$UTIL_WASM_DIR/makedefs.js" ]; then
+    echo "  Building makedefs..."
+    emcc $UTIL_CFLAGS -I"$ROOT_DIR/win/vulture" -DMAKEDEFS_C \
+        "$ROOT_DIR/util/makedefs.c" \
+        "$ROOT_DIR/src/monst.c" \
+        "$ROOT_DIR/src/objects.c" \
+        -o "$UTIL_WASM_DIR/makedefs.js"
+else
+    echo "  makedefs already built."
+fi
 echo "  WASM utilities ready."
 echo ""
 
@@ -170,6 +181,10 @@ cd "$ROOT_DIR/dat"
 # Rebuild dungeon data
 echo "  Rebuilding dungeon..."
 node "$UTIL_WASM_DIR/dgn_comp.js" dungeon.pdf
+
+# Rebuild quest text data (struct qtmsg contains 'long' fields)
+echo "  Rebuilding quest.dat..."
+(cd "$ROOT_DIR/util" && node "$UTIL_WASM_DIR/makedefs.js" -q)
 
 # Rebuild all level files
 echo "  Rebuilding levels..."
