@@ -1,8 +1,15 @@
 /*! coi-serviceworker v0.1.7 - Guido Zuidhof and contributors, licensed under MIT */
 let coepCredentialless = false;
 if (typeof window === 'undefined') {
+    const CACHE_NAME = 'vulture-nethack-v1';
+    const CACHEABLE = /\.(data|wasm|js|html)$/;
+
     self.addEventListener("install", () => self.skipWaiting());
-    self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim()));
+    self.addEventListener("activate", (event) => event.waitUntil(
+        caches.keys().then(names => Promise.all(
+            names.filter(n => n !== CACHE_NAME).map(n => caches.delete(n))
+        )).then(() => self.clients.claim())
+    ));
 
     self.addEventListener("message", (ev) => {
         if (!ev.data) {
@@ -21,6 +28,23 @@ if (typeof window === 'undefined') {
         }
     });
 
+    function addCoepHeaders(response) {
+        if (response.status === 0) return response;
+        const newHeaders = new Headers(response.headers);
+        newHeaders.set("Cross-Origin-Embedder-Policy",
+            coepCredentialless ? "credentialless" : "require-corp"
+        );
+        if (!coepCredentialless) {
+            newHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
+        }
+        newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+        return new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: newHeaders,
+        });
+    }
+
     self.addEventListener("fetch", function (event) {
         const r = event.request;
         if (r.cache === "only-if-cached" && r.mode !== "same-origin") {
@@ -28,34 +52,33 @@ if (typeof window === 'undefined') {
         }
 
         const request = (coepCredentialless && r.mode === "no-cors")
-            ? new Request(r, {
-                credentials: "omit",
-            })
+            ? new Request(r, { credentials: "omit" })
             : r;
-        event.respondWith(
-            fetch(request)
-                .then((response) => {
-                    if (response.status === 0) {
-                        return response;
-                    }
 
-                    const newHeaders = new Headers(response.headers);
-                    newHeaders.set("Cross-Origin-Embedder-Policy",
-                        coepCredentialless ? "credentialless" : "require-corp"
-                    );
-                    if (!coepCredentialless) {
-                        newHeaders.set("Cross-Origin-Resource-Policy", "cross-origin");
-                    }
-                    newHeaders.set("Cross-Origin-Opener-Policy", "same-origin");
+        const url = new URL(r.url);
+        const shouldCache = CACHEABLE.test(url.pathname);
 
-                    return new Response(response.body, {
-                        status: response.status,
-                        statusText: response.statusText,
-                        headers: newHeaders,
-                    });
-                })
-                .catch((e) => console.error(e))
-        );
+        if (shouldCache) {
+            event.respondWith(
+                caches.open(CACHE_NAME).then(cache =>
+                    cache.match(request).then(cached => {
+                        if (cached) return addCoepHeaders(cached);
+                        return fetch(request).then(response => {
+                            if (response.ok) {
+                                cache.put(request, response.clone());
+                            }
+                            return addCoepHeaders(response);
+                        });
+                    })
+                ).catch(e => console.error(e))
+            );
+        } else {
+            event.respondWith(
+                fetch(request)
+                    .then(response => addCoepHeaders(response))
+                    .catch(e => console.error(e))
+            );
+        }
     });
 
 } else {
