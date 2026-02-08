@@ -37,9 +37,10 @@ typedef struct {
 /* main tile arrays */
 static vulture_tilecache_entry *vulture_tilecache;
 
-/* semi-transparent black areas used to shade floortiles */
-static SDL_Surface * vulture_ftshade1;
-static SDL_Surface * vulture_ftshade2;
+/* brightness scale factors for shade levels (integer, divide by 256):
+ * shade 1 = 30% darker -> multiply by 175/256 ≈ 0.68
+ * shade 2 = 70% darker -> multiply by  79/256 ≈ 0.31 */
+static const int shade_scale[3] = { 256, 175, 79 };
 
 static gametiles *vulture_gametiles;
 
@@ -218,16 +219,31 @@ vulture_tile * vulture_load_tile(int tile_id)
 }
 
 
-/* darken a tile; the amount of darkening is determined by the tile_id */
+/* darken a tile by scaling RGB values; alpha channel is preserved so
+ * transparent pixels (outside the isometric diamond) stay transparent.
+ * The old SDL1 approach of blitting a semi-transparent black overlay
+ * breaks under SDL2 because SDL_BLENDMODE_BLEND also modifies the
+ * destination alpha, making transparent corners visible as dark rects. */
 static inline vulture_tile * vulture_shade_tile(vulture_tile *orig, int shadelevel)
 {
-	SDL_Surface * blend = (shadelevel == 1) ? vulture_ftshade1 : vulture_ftshade2;
 	vulture_tile *tile = new vulture_tile;
 
 	tile->xmod = orig->xmod;
 	tile->ymod = orig->ymod;
 	tile->graphic = vulture_get_img_src(0,0, orig->graphic->w-1, orig->graphic->h-1, orig->graphic);
-	SDL_BlitSurface(blend, NULL, tile->graphic, NULL);
+
+	int scale = shade_scale[shadelevel];
+	unsigned char *pixels = (unsigned char *)tile->graphic->pixels;
+
+	for (int y = 0; y < tile->graphic->h; y++) {
+		for (int x = 0; x < tile->graphic->w; x++) {
+			int idx = y * tile->graphic->pitch + x * 4;
+			pixels[idx]     = (pixels[idx]     * scale) >> 8;
+			pixels[idx + 1] = (pixels[idx + 1] * scale) >> 8;
+			pixels[idx + 2] = (pixels[idx + 2] * scale) >> 8;
+			/* pixels[idx + 3] (alpha) unchanged */
+		}
+	}
 
 	return tile;
 }
@@ -305,16 +321,6 @@ int vulture_load_gametiles(void)
 	memset(vulture_tilecache, 0, TILEARRAYLEN * sizeof(vulture_tilecache_entry));
 
 
-	/* create the surfaces used to shade floor tiles */
-	vulture_ftshade1 = SDL_CreateRGBSurface(SDL_SWSURFACE | SDL_SRCALPHA, 112, 100, 32,
-								vulture_px_format->Rmask, vulture_px_format->Gmask,
-								vulture_px_format->Bmask, DEF_AMASK);
-	vulture_ftshade2 = SDL_CreateRGBSurface(SDL_SWSURFACE | SDL_SRCALPHA, 112, 100, 32,
-								vulture_px_format->Rmask, vulture_px_format->Gmask,
-								vulture_px_format->Bmask, DEF_AMASK);
-	SDL_FillRect(vulture_ftshade1, NULL, CLR32_BLACK_A30);
-	SDL_FillRect(vulture_ftshade2, NULL, CLR32_BLACK_A70);
-
 	return 1;
 }
 
@@ -323,9 +329,6 @@ void vulture_unload_gametiles(void)
 {
 	vulture_tilecache_discard();
 	delete vulture_tilecache;
-
-	SDL_FreeSurface(vulture_ftshade1);
-	SDL_FreeSurface(vulture_ftshade2);
 }
 
 
