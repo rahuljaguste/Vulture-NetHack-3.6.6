@@ -367,6 +367,13 @@ int vulture_handle_global_event(SDL_Event * event)
 					}
 					vulture_screen = SDL_GetWindowSurface(vulture_sdl_window);
 					vulture_set_screensize();
+					/* Refresh cached mouse position in the new coordinate space
+					 * so clicks immediately after resize hit the right tile */
+					{
+						int mx, my;
+						SDL_GetMouseState(&mx, &my);
+						vulture_set_mouse_pos(mx, my);
+					}
 					break;
 				}
 			}
@@ -410,6 +417,11 @@ int vulture_handle_global_event(SDL_Event * event)
 				}
 			}
 			quitting--;
+			break;
+
+		case SDL_MOUSEBUTTONDOWN:
+		case SDL_MOUSEBUTTONUP:
+			vulture_set_mouse_pos(event->button.x, event->button.y);
 			break;
 
 		case SDL_MOUSEMOTION:

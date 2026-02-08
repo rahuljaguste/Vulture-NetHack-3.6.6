@@ -147,6 +147,8 @@ function cycleResolution() {
   resIndex = (resIndex + 1) % resPresets.length;
   var w = resPresets[resIndex][0], h = resPresets[resIndex][1];
   Module._vulture_change_resolution(w, h);
+  /* Sync CSS dimensions immediately so mouse coordinates are correct */
+  setTimeout(resizeCanvas, 0);
   var btn = document.getElementById("res-btn");
   btn.innerHTML = w + "\u00D7" + h;
   btn.title = "Resolution: " + w + "\u00D7" + h;
