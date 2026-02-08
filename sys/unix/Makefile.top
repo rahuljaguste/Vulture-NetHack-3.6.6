@@ -78,6 +78,9 @@ VARDAT = $(VARDATD) $(VARDATND)
 CHOWN = /usr/bin/true
 CHGRP = /usr/bin/true
 
+# Install sysconf file (required when SYSCF is defined in config.h)
+POSTINSTALL = cp -n sys/unix/sysconf $(INSTDIR)/sysconf
+
 # -----------------------------------------------
 # Extra configuration for NetHack - Vulture's Eye
 # -----------------------------------------------

@@ -11,8 +11,7 @@
 #      source ./emsdk_env.sh
 #
 #   2. Build the native version first to generate required files
-#
-#   3. Run this script from the sys/emscripten directory
+#      (cd sys/unix && sh setup.sh && cd ../.. && make && make install)
 #
 
 set -e
@@ -97,8 +96,110 @@ fi
 echo "  OK."
 echo ""
 
+# Check for native install
+echo "Step 4: Checking for native install..."
+NATIVE_DATADIR="$ROOT_DIR/compiled/games/lib/vulture-nethack-3.6.6dir"
+if [ ! -d "$NATIVE_DATADIR" ]; then
+    echo "  ERROR: Native install not found at $NATIVE_DATADIR"
+    echo "  Please run 'make install' first."
+    exit 1
+fi
+echo "  Found native install."
+echo ""
+
+# Build WASM utilities (dgn_comp, lev_comp, dlb) if not present
+echo "Step 5: Building WASM utilities..."
+UTIL_WASM_DIR="$BUILD_DIR/util-wasm"
+mkdir -p "$UTIL_WASM_DIR"
+
+UTIL_CFLAGS="-O2 -I$ROOT_DIR/include -I$ROOT_DIR/src -s NODERAWFS=1 -s EXIT_RUNTIME=1"
+
+if [ ! -f "$UTIL_WASM_DIR/dgn_comp.js" ]; then
+    echo "  Building dgn_comp..."
+    emcc $UTIL_CFLAGS \
+        "$ROOT_DIR/util/dgn_comp.c" \
+        "$ROOT_DIR/util/dgn_lex.c" \
+        "$ROOT_DIR/util/dgn_yacc.c" \
+        "$ROOT_DIR/util/alloc.c" \
+        "$ROOT_DIR/util/panic.c" \
+        -o "$UTIL_WASM_DIR/dgn_comp.js"
+else
+    echo "  dgn_comp already built."
+fi
+
+if [ ! -f "$UTIL_WASM_DIR/lev_comp.js" ]; then
+    echo "  Building lev_comp..."
+    emcc $UTIL_CFLAGS \
+        "$ROOT_DIR/util/lev_comp.c" \
+        "$ROOT_DIR/util/lev_lex.c" \
+        "$ROOT_DIR/util/lev_main.c" \
+        "$ROOT_DIR/util/alloc.c" \
+        "$ROOT_DIR/util/panic.c" \
+        "$ROOT_DIR/src/decl.c" \
+        "$ROOT_DIR/src/drawing.c" \
+        "$ROOT_DIR/src/monst.c" \
+        "$ROOT_DIR/src/objects.c" \
+        -o "$UTIL_WASM_DIR/lev_comp.js"
+else
+    echo "  lev_comp already built."
+fi
+
+if [ ! -f "$UTIL_WASM_DIR/dlb.js" ]; then
+    echo "  Building dlb..."
+    emcc $UTIL_CFLAGS -DDLB \
+        "$ROOT_DIR/util/dlb_main.c" \
+        "$ROOT_DIR/src/dlb.c" \
+        "$ROOT_DIR/util/alloc.c" \
+        "$ROOT_DIR/util/panic.c" \
+        -o "$UTIL_WASM_DIR/dlb.js"
+else
+    echo "  dlb already built."
+fi
+echo "  WASM utilities ready."
+echo ""
+
+# Rebuild data files with WASM utilities for correct struct alignment
+# (unsigned long is 8 bytes on ARM64 but 4 bytes on WASM32)
+echo "Step 6: Rebuilding data files for WASM..."
+NHDATA_DIR="$BUILD_DIR/nhdata"
+rm -rf "$NHDATA_DIR"
+cp -R "$NATIVE_DATADIR" "$NHDATA_DIR"
+
+cd "$ROOT_DIR/dat"
+
+# Rebuild dungeon data
+echo "  Rebuilding dungeon..."
+node "$UTIL_WASM_DIR/dgn_comp.js" dungeon.pdf
+
+# Rebuild all level files
+echo "  Rebuilding levels..."
+for des in bigroom.des castle.des endgame.des gehennom.des knox.des medusa.des \
+           mines.des oracle.des sokoban.des tower.des yendor.des \
+           Arch.des Barb.des Caveman.des Healer.des Knight.des Monk.des \
+           Priest.des Ranger.des Rogue.des Samurai.des Tourist.des \
+           Valkyrie.des Wizard.des; do
+    node "$UTIL_WASM_DIR/lev_comp.js" "$des"
+done
+
+# Rebuild nhdat archive
+echo "  Rebuilding nhdat archive..."
+LC_ALL=C node "$UTIL_WASM_DIR/dlb.js" cf nhdat \
+    help hh cmdhelp keyhelp history opthelp wizhelp dungeon tribute \
+    asmodeus.lev baalz.lev bigrm-*.lev castle.lev fakewiz?.lev \
+    juiblex.lev knox.lev medusa-?.lev minend-?.lev minefill.lev \
+    minetn-?.lev oracle.lev orcus.lev sanctum.lev soko?-?.lev \
+    tower?.lev valley.lev wizard?.lev astral.lev air.lev earth.lev \
+    fire.lev water.lev ???-goal.lev ???-fil?.lev ???-loca.lev \
+    ???-strt.lev bogusmon data engrave epitaph oracles options quest.dat rumors
+
+cp nhdat "$NHDATA_DIR/nhdat"
+echo "  Data files rebuilt for WASM."
+echo ""
+
+cd "$BUILD_DIR"
+
 # Build with Emscripten
-echo "Step 4: Building with Emscripten..."
+echo "Step 7: Building with Emscripten..."
 echo ""
 
 # Copy the Makefile

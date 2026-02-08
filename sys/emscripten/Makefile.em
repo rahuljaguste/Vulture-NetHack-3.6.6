@@ -21,9 +21,9 @@ WINVULCLASSDIR = ../win/vulture/winclass
 WINVULBUILDDIR = ../win/vulture/build_nethack_3_6_0
 GAMEDATADIR = ../win/vulture/gamedata
 
-# NetHack data directory (from native build install)
-# Adjust this path to point to your native build's installed data
-NHDATADIR = ../compiled/games/lib/vulture-nethack-3.6.6dir
+# NetHack data directory (WASM-compatible data rebuilt with Emscripten utilities)
+# This directory is created by build-web.sh with architecture-matched binary data
+NHDATADIR = nhdata
 
 # Emscripten-specific flags
 EMFLAGS = -s USE_SDL=2 -s USE_SDL_TTF=2 -s USE_SDL_MIXER=2 -s USE_LIBPNG=1 -s USE_OGG=1 -s USE_VORBIS=1

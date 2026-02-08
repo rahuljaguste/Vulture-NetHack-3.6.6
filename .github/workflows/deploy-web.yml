@@ -1,7 +1,9 @@
-name: Deploy to GitHub Pages
+name: Build and Deploy to GitHub Pages
 
 on:
   push:
+    branches: [vultures-3.6.6]
+  pull_request:
     branches: [vultures-3.6.6]
   workflow_dispatch:
 
@@ -15,11 +17,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
 
@@ -44,6 +43,7 @@ jobs:
         run: bash sys/emscripten/build-web.sh
 
       - name: Prepare Pages artifact
+        if: github.event_name != 'pull_request'
         run: |
           mkdir -p _site
           cp build-web/nethack.html _site/index.html
@@ -54,11 +54,21 @@ jobs:
           cp build-web/nethack.worker.js _site/ 2>/dev/null || true
 
       - name: Setup Pages
+        if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v4
 
       - name: Upload Pages artifact
+        if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
 
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
