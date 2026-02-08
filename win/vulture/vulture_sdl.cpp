@@ -102,13 +102,8 @@ void vulture_wait_event(SDL_Event * event, int wait_timeout)
 			event->type == SDL_MOUSEBUTTONDOWN ||
 			event->type == SDL_MOUSEBUTTONUP ||
 			event->type == SDL_MOUSEWHEEL ||
-#ifdef __EMSCRIPTEN__
-			/* In Emscripten, always accept timer events (no mouse focus tracking) */
-			event->type == SDL_TIMEREVENT ||
-#else
 			/* send timer events only while the mouse is in the window */
 			(event->type == SDL_TIMEREVENT && have_mouse_focus) ||
-#endif
 			event->type == SDL_MOUSEMOTION)
 			done = 1;
 #ifdef __EMSCRIPTEN__
@@ -419,6 +414,7 @@ int vulture_handle_global_event(SDL_Event * event)
 
 		case SDL_MOUSEMOTION:
 			vulture_set_mouse_pos(event->motion.x, event->motion.y);
+			have_mouse_focus = 1; /* mouse is over canvas; backup for WINDOWEVENT_ENTER */
 			break;
 
 		case SDL_KEYDOWN:
