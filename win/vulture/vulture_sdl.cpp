@@ -75,8 +75,15 @@ void vulture_wait_event(SDL_Event * event, int wait_timeout)
 			break; /* got a real event */
 		}
 #else
-		while (SDL_PollEvent(event) && event->type == SDL_MOUSEMOTION)
-			/* do nothing, we're merely dequeueing unhandled mousemotion events */ ;
+		/* Drain stale MOUSEMOTION events, keeping the last polled event */
+		{
+			SDL_Event tmp;
+			while (SDL_PollEvent(&tmp)) {
+				*event = tmp;
+				if (tmp.type != SDL_MOUSEMOTION)
+					break;
+			}
+		}
 #endif
 
 		if (!event->type) {
@@ -133,8 +140,15 @@ int vulture_poll_event(SDL_Event * event)
 			break;
 		}
 #else
-		while (SDL_PollEvent(event) && event->type == SDL_MOUSEMOTION)
-			/* do nothing, we're merely dequeueing unhandled mousemotion events */ ;
+		/* Drain stale MOUSEMOTION events, keeping the last polled event */
+		{
+			SDL_Event tmp;
+			while (SDL_PollEvent(&tmp)) {
+				*event = tmp;
+				if (tmp.type != SDL_MOUSEMOTION)
+					break;
+			}
+		}
 #endif
 
 		if (!event->type)
