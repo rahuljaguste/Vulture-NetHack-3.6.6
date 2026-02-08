@@ -70,7 +70,15 @@ extern void FDECL(nethack_exit, (int));
 #elif defined(__EMSCRIPTEN__)
 #include <emscripten.h>
 static void nethack_exit(int status) {
-    emscripten_run_script("setTimeout(function() { location.reload(); }, 2000);");
+    emscripten_run_script(
+        "var c = document.getElementById('canvas');"
+        "if (c) c.style.display = 'none';"
+        "document.querySelectorAll('.overlay-btn').forEach(function(b){b.style.display='none';});"
+        "var d = document.createElement('div');"
+        "d.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#000;color:#ccc;font-family:sans-serif;';"
+        "d.innerHTML = '<h2>Game Over</h2><br><button onclick=\"location.reload()\" style=\"font-size:18px;padding:10px 24px;cursor:pointer;\">Play Again</button>';"
+        "document.body.appendChild(d);"
+    );
     emscripten_force_exit(status);
 }
 #else
