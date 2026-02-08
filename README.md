@@ -97,6 +97,17 @@ dat/              Game data files (levels, quests, etc.)
 doc/              Documentation
 ```
 
+## Recent Changes
+
+- **Quest text fix** -- Fixed quest text not loading in the web build
+- **Mouse input fix** -- Fixed mouse not working in native build
+- **Game Over screen** -- Show a proper Game Over screen instead of auto-reloading on quit (web build)
+- **CI/CD** -- Consolidated CI pipeline to web-only builds; deploy via gh-pages branch
+- **Linux build fix** -- Fixed partial link conflict between `-r` and `-pie` flags on Linux
+- **SDL2 migration** -- Fully ported from SDL1 to SDL2 (no more sdl12-compat dependency)
+- **WebAssembly port** -- Play NetHack in the browser via Emscripten/WebAssembly
+- **Community files** -- Added CONTRIBUTING.md, CODE_OF_CONDUCT.md, and issue/PR templates
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute.
