@@ -11,13 +11,17 @@ class inputdialog : public mainwin
 {
   public:
     inputdialog(window *p, std::string caption, int size, int force_x,
-                int force_y);
+                int force_y, const std::string &default_text = "");
     virtual bool draw();
     virtual eventresult handle_mousemotion_event(window *target, void *result,
                                                  int xrel, int yrel,
                                                  int state);
     virtual eventresult handle_keydown_event(window *target, void *result,
                                              int sym, int mod, int unicode);
+    virtual eventresult handle_mousebuttonup_event(window *target,
+                                                   void *result, int mouse_x,
+                                                   int mouse_y, int button,
+                                                   int state);
     virtual eventresult handle_resize_event(window *target, void *result,
                                             int res_w, int res_h);
     void copy_input(char *dest);

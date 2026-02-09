@@ -96,7 +96,8 @@ typedef struct event {
 
 /* high-level window functions */
 extern void vulture_messagebox(std::string message);
-extern int vulture_get_input(int x, int y, const char *ques, char *input);
+extern int vulture_get_input(int x, int y, const char *ques, char *input,
+                             const char *default_text = NULL);
 
 
 /* drawing functions */

@@ -357,7 +357,7 @@ void vulture_askname(void)
 	char inputbuffer[256];
 
 	done = vulture_get_input(-1, vulture_screen->h - 170,
-						"What is your name?", inputbuffer);
+						"What is your name?", inputbuffer, "web_user");
 	if (!done)
 		/* Player pressed ESC during the name query, so quit the game */
 		vulture_bail(NULL);

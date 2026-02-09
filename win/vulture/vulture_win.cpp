@@ -75,12 +75,14 @@ void vulture_messagebox(std::string message)
 }
 
 
-int vulture_get_input(int force_x, int force_y, const char *ques, char *input)
+int vulture_get_input(int force_x, int force_y, const char *ques, char *input,
+                      const char *default_text)
 {
 	int response;
   bool isRootWindow = false;
 
-	inputdialog *win = new inputdialog(ROOTWIN, ques, 256, force_x, force_y);
+	inputdialog *win = new inputdialog(ROOTWIN, ques, 256, force_x, force_y,
+	                                   default_text ? default_text : "");
 
 	vulture_write_log(V_LOG_DEBUG, __FILE__, __LINE__, "vulture_get_input(%d,%d,%s) {entry}\n", force_x, force_y, ques);
 

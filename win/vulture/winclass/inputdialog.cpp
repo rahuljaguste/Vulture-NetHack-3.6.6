@@ -9,9 +9,10 @@
 
 #include "inputdialog.h"
 #include "textwin.h"
+#include "button.h"
 
 inputdialog::inputdialog(window *p, std::string ques, int size, int force_x,
-                         int force_y)
+                         int force_y, const std::string &default_text)
     : mainwin(p)
 {
     caption = ques;
@@ -21,19 +22,30 @@ inputdialog::inputdialog(window *p, std::string ques, int size, int force_x,
     input = new textwin(this, destsize);
     input->menu_id = 1;
 
+    if (!default_text.empty())
+        input->caption = default_text;
+
     /* calc sizes and positions */
     w = vulture_text_length(V_FONT_HEADLINE, ques);
     w = (w < 500) ? 500 : w;
 
     input->w = w;
     w += border_left + border_right;
-    h = border_top + vulture_get_lineheight(V_FONT_HEADLINE)
-        + 3 * vulture_get_lineheight(V_FONT_INPUT) + border_bottom;
-    input->h = vulture_get_lineheight(V_FONT_INPUT) + 1;
 
+    int lineheight = vulture_get_lineheight(V_FONT_INPUT);
+    int buttonheight = vulture_get_lineheight(V_FONT_MENU) + 15;
+
+    input->h = lineheight + 1;
     input->x = (w - input->w) / 2;
-    input->y = border_top + vulture_get_lineheight(V_FONT_HEADLINE)
-               + vulture_get_lineheight(V_FONT_INPUT);
+    input->y = border_top + vulture_get_lineheight(V_FONT_HEADLINE) + lineheight;
+
+    /* add a Continue button below the input field */
+    button *btn = new button(this, "Continue", 1, '\r');
+    btn->x = (w - btn->w) / 2;
+    btn->y = input->y + input->h + lineheight;
+
+    h = border_top + vulture_get_lineheight(V_FONT_HEADLINE)
+        + 3 * lineheight + buttonheight + border_bottom;
 
     if (parent == NULL) {
         force_x = (vulture_screen->w - w) / 2;
@@ -78,6 +90,19 @@ inputdialog::handle_mousemotion_event(window *target, void *result, int xrel,
                                       int yrel, int state)
 {
     vulture_set_mcursor(V_CURSOR_NORMAL);
+    return V_EVENT_HANDLED_NOREDRAW;
+}
+
+eventresult
+inputdialog::handle_mousebuttonup_event(window *target, void *result,
+                                        int mouse_x, int mouse_y,
+                                        int button, int state)
+{
+    if (button == SDL_BUTTON_LEFT
+        && target->get_wintype() == V_WINTYPE_BUTTON) {
+        *(int *) result = 1;
+        return V_EVENT_HANDLED_FINAL;
+    }
     return V_EVENT_HANDLED_NOREDRAW;
 }
 
